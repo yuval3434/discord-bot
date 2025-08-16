@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import json
 import yt_dlp
+from discord.ext.commands import has_permissions
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -98,7 +99,64 @@ async def resume(ctx):
     if ctx.voice_client.is_paused():
         ctx.voice_client.resume()
 
-##@bot.command()
-##sync def
+@bot.command()
+async def commands(ctx):
+    await ctx.send("!ping - Pong! 🏓 \n"
+                   "!hello - hello (username)! \n"
+                   "!say (sentence) - (sentence) \n"
+                   "!add (number1) (number2) - (number1 + number2) \n"
+                   "!sub (number1) (number2) - (number1 - number2) \n"
+                   "!flip - Head or Tails \n"
+                   "!dice - number between 1 and 6 \n"
+                   "!userinfo (username) - info about the user \n"
+                   "!play (songname) - if in voicechat it plays the song \n"
+                   "!pause - pause the song \n"
+                   "!resume - resume the song \n")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def admin_commands(ctx):
+    await ctx.send("!announce (message) - announce the message \n"
+                   "!kick (username) - kick username \n"
+                   "!ban (username) - ban username \n"
+                   "!unban (username) - unban username \n")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def announce(ctx, *, message):
+    await ctx.send(f"📢 Announcement from {ctx.author.name}: {message}")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def kick(ctx, member: discord.Member):
+    await member.kick()
+    await ctx.send(f"{member.mention} was kicked")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def ban(ctx, member: discord.Member):
+    await member.ban()
+    await ctx.send(f"{member.mention} was banned")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def unban(ctx, *, member_name):
+    banned_users = await ctx.guild.bans()
+    member_name = member_name.lower()
+
+    for ban_entry in banned_users:
+        user = ban_entry.user
+        if user.name.lower() == member_name or f"{user.name.lower()}#{user.discriminator}" == member_name:
+            await ctx.guild.unban(user)
+            await ctx.send(f"{user.mention} was unbanned")
+            return
+
+    await ctx.send(f"❌ Could not find banned user: {member_name}")
+
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You do not have permission to use this command!")
+
 
 bot.run(TOKEN)
