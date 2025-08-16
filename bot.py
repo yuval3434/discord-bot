@@ -119,7 +119,9 @@ async def admin_commands(ctx):
     await ctx.send("!announce (message) - announce the message \n"
                    "!kick (username) - kick username \n"
                    "!ban (username) - ban username \n"
-                   "!unban (username) - unban username \n")
+                   "!unban (username) - unban username \n"
+                   "!show_banned - show banned users \n"
+                   "")
 
 @bot.command()
 @has_permissions(administrator=True)
@@ -141,7 +143,7 @@ async def ban(ctx, member: discord.Member):
 @bot.command()
 @has_permissions(administrator=True)
 async def unban(ctx, *, member_name):
-    banned_users = await ctx.guild.bans()
+    banned_users = [ban async for ban in ctx.guild.bans()]
     member_name = member_name.lower()
 
     for ban_entry in banned_users:
@@ -157,6 +159,19 @@ async def unban(ctx, *, member_name):
 async def announce_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ You do not have permission to use this command!")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def show_banned(ctx):
+    banned_users = [ban async for ban in  ctx.guild.bans()]
+    if not banned_users:
+        await ctx.send("There are no banned users ❌")
+        return
+    banned_list = ""
+    for ban_entry in banned_users:
+        user = ban_entry.user
+        banned_list += f"{user.name}#{user.discriminator}\n"
+    await ctx.send(f"📋 Banned users:\n{banned_list}")
 
 
 bot.run(TOKEN)
