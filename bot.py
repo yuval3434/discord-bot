@@ -74,25 +74,31 @@ async def play(ctx, *, query):
         else:
             return await ctx.send("❌ You need to be in a voice channel first!")
 
-    ydl_opts = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
-        url = info['url']
+    ydl_opts = {'format': 'bestaudio[ext=m4a]', 'noplaylist': True, 'quiet': True, 'outtmpl': 'temp/%(title)s.%(ext)s'}
 
-        ctx.voice_client.stop()
-        source = await discord.FFmpegOpusAudio.from_probe(url, method='fallback')
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch:{query}", download=True)['entries'][0]
+        filename = ydl.prepare_filename(info)
+
+        if ctx.voice_client.is_playing():
+            ctx.voice_client.stop()
+
+        source = discord.FFmpegPCMAudio(filename)
         ctx.voice_client.play(source)
 
         await ctx.send(f"🎶 Now playing: **{info['title']}**")
 
-    @bot.command()
-    async def pause(ctx):
-        if ctx.voice_client.is_playing():
-            ctx.voice_client.pause()
+@bot.command()
+async def pause(ctx):
+    if ctx.voice_client.is_playing():
+         ctx.voice_client.pause()
 
-    @bot.command()
-    async def resume(ctx):
-        if ctx.voice_client.is_paused():
-            ctx.voice_client.resume()
+@bot.command()
+async def resume(ctx):
+    if ctx.voice_client.is_paused():
+        ctx.voice_client.resume()
+
+##@bot.command()
+##sync def
 
 bot.run(TOKEN)
