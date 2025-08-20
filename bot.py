@@ -4,6 +4,9 @@ from discord.ext import commands
 import json
 import yt_dlp
 from discord.ext.commands import has_permissions
+from datetime import timedelta
+import asyncio
+
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -13,6 +16,7 @@ PREFIX = config.get("PREFIX", "!")
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 @bot.event
@@ -65,7 +69,8 @@ async def userinfo(ctx, member: discord.Member = None):
 async def on_member_join(member):
     channel = discord.utils.get(member.guild.text_channels, name="general")
     if channel:
-        await channel.send(f"Welcome {member.mention}!")
+        await channel.send(f"Welcome {member.mention}! \n"
+                           f"You can use !show_commands to see the possible commands the bot can obey!")
 
 @bot.command()
 async def play(ctx, *, query):
@@ -75,7 +80,7 @@ async def play(ctx, *, query):
         else:
             return await ctx.send("❌ You need to be in a voice channel first!")
 
-    ydl_opts = {'format': 'bestaudio[ext=m4a]', 'noplaylist': True, 'quiet': True, 'outtmpl': 'temp/%(title)s.%(ext)s'}
+    ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True, 'outtmpl': 'temp/%(title)s.%(ext)s'}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(f"ytsearch:{query}", download=True)['entries'][0]
@@ -100,7 +105,7 @@ async def resume(ctx):
         ctx.voice_client.resume()
 
 @bot.command()
-async def commands(ctx):
+async def show_commands(ctx):
     await ctx.send("!ping - Pong! 🏓 \n"
                    "!hello - hello (username)! \n"
                    "!say (sentence) - (sentence) \n"
@@ -111,17 +116,21 @@ async def commands(ctx):
                    "!userinfo (username) - info about the user \n"
                    "!play (songname) - if in voicechat it plays the song \n"
                    "!pause - pause the song \n"
-                   "!resume - resume the song \n")
+                   "!resume - resume the song \n"
+                   "!remind (minutes) (message) - reminder \n"
+                   "!poll \"(question)\" (options) - create poll \n"
+                   "")
 
 @bot.command()
 @has_permissions(administrator=True)
-async def admin_commands(ctx):
+async def show_admin_commands(ctx):
     await ctx.send("!announce (message) - announce the message \n"
                    "!kick (username) - kick username \n"
                    "!ban (username) - ban username \n"
                    "!unban (username) - unban username \n"
                    "!show_banned - show banned users \n"
-                   "")
+                   "!timeout - timeout for 24 hours \n"
+                   "!untimeout - untimeout \n")
 
 @bot.command()
 @has_permissions(administrator=True)
@@ -155,15 +164,10 @@ async def unban(ctx, *, member_name):
 
     await ctx.send(f"❌ Could not find banned user: {member_name}")
 
-@announce.error
-async def announce_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ You do not have permission to use this command!")
-
 @bot.command()
 @has_permissions(administrator=True)
 async def show_banned(ctx):
-    banned_users = [ban async for ban in  ctx.guild.bans()]
+    banned_users = [ban async for ban in ctx.guild.bans()]
     if not banned_users:
         await ctx.send("There are no banned users ❌")
         return
@@ -172,6 +176,50 @@ async def show_banned(ctx):
         user = ban_entry.user
         banned_list += f"{user.name}#{user.discriminator}\n"
     await ctx.send(f"📋 Banned users:\n{banned_list}")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def timeout(ctx, member: discord.Member, hours: int = 24):
+    until = discord.utils.utcnow() + timedelta(hours=hours)
+    await member.edit(timed_out_until=until)
+    await ctx.send(f"{member.mention} was been timeout for 24 hours")
+
+@bot.command()
+@has_permissions(administrator=True)
+async def untimeout(ctx, member: discord.Member):
+    await member.edit(timed_out_until=None)
+    await ctx.send(f"{member.mention} was been untimeout")
+
+@bot.command()
+async def remind(ctx,minutes: int,*,message):
+    await ctx.send(f"⏰ Reminder set for {minutes} minute(s).")
+    await asyncio.sleep(minutes * 60)
+    await ctx.send(f"🔔 {ctx.author.mention}, reminder: {message}")
+
+@bot.command()
+async def poll(ctx,question, *options):
+    if len(options) < 2:
+        await ctx.send("❌ You need at least 2 options for a poll!")
+        return
+    if len(options) > 10:
+        await ctx.send("❌ Maximum 10 options allowed!")
+        return
+    description = ""
+    emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+
+    embed = discord.Embed(title=question, description=description, color=discord.Color.blue())
+    poll_message = await ctx.send(embed=embed)
+
+    for i in range(len(options)):
+        await poll_message.add_reaction(emojis[i])
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error,commands.MissingPermissions):
+        await ctx.send("❌ You do not have permission to use this command!")
+    elif isinstance(error,commands.MemberNotFound):
+        await ctx.send("❌ Member not found")
+
 
 
 bot.run(TOKEN)
