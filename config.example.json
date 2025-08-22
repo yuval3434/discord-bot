@@ -1,4 +1,5 @@
 {
     "TOKEN": "Enter the bot token here",
-    "PREFIX": "!"
+    "PREFIX": "!",
+    "API_KEY" : "Enter Riot API key here"
 }

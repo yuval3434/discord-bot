@@ -253,7 +253,7 @@ async def mu_userinfo(ctx,*, player_name):
     await ctx.send(embed=embed)
 
 def league_player_search(name, tag):
-    API_KEY = "RGAPI-9fd82d3f-69f0-42bf-8ad4-f7aae362ecff"
+    API_KEY = config["API_KEY"]
     REGION = "europe"
     url = f"https://{REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{quote(name)}/{quote(tag)}"
 
