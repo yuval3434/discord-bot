@@ -6,6 +6,9 @@ import yt_dlp
 from discord.ext.commands import has_permissions
 from datetime import timedelta
 import asyncio
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import quote
 
 
 with open("config.json", "r") as f:
@@ -119,7 +122,8 @@ async def show_commands(ctx):
                    "!resume - resume the song \n"
                    "!remind (minutes) (message) - reminder \n"
                    "!poll \"(question)\" (options) - create poll \n"
-                   "")
+                   "!mu_userinfo (username) - gives you info about the user in the game mu online \n"
+                   "!lol_userinfo (username) - gives you info about the user in the game League of legends \n")
 
 @bot.command()
 @has_permissions(administrator=True)
@@ -220,6 +224,162 @@ async def on_command_error(ctx, error):
     elif isinstance(error,commands.MemberNotFound):
         await ctx.send("❌ Member not found")
 
+def mu_search_player(player_name):
+    url = f"https://www.uniquemu.co.il/profile/player/req/{player_name}"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
 
+    tbodys = soup.find_all("tbody")
+    tbody = tbodys[2]
+
+    td = tbody.find_all("td")
+
+    dic = {"name": td[0].text.split(":"),
+    "class": td[1].text.split(":"),
+    "status": td[7].text.split(":"),
+    "level": td[9].text.split(":")
+    }
+    return dic
+
+@bot.command()
+async def mu_userinfo(ctx,*, player_name):
+    dic = mu_search_player(player_name)
+    embed = discord.Embed(title=f" info about: {player_name}", color=discord.Color.blue())
+    embed.add_field(name="Username", value=dic["name"][1], inline=True)
+    embed.add_field(name="class", value=dic["class"][1], inline=True)
+    embed.add_field(name="status", value=dic["status"][1], inline=False)
+    embed.add_field(name="level", value=dic["level"][1],inline=False)
+
+    await ctx.send(embed=embed)
+
+def league_player_search(name, tag):
+    API_KEY = "RGAPI-9fd82d3f-69f0-42bf-8ad4-f7aae362ecff"
+    REGION = "europe"
+    url = f"https://{REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{quote(name)}/{quote(tag)}"
+
+    headers = {"X-Riot-Token": API_KEY}
+    response = requests.get(url, headers=headers)
+
+    info= {"username": name, "riotTag" : tag, "region": REGION}
+    if response.status_code == 200:
+        data = response.json()
+        PUUID = data["puuid"]
+
+        matchurl = f"https://{REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/{PUUID}/ids?start=0&count={20}"
+        matchresponse = requests.get(matchurl, headers=headers)
+        lastmatches = matchresponse.json()
+
+        if len(lastmatches) < 20:
+            return 1
+
+        if matchresponse.status_code != 200:
+            return 0
+
+        totalkillsAndAsists = 0
+        totaldeaths = 0
+
+        for i in range(len(lastmatches)):
+            matchId = lastmatches[i]
+            statsurl = f"https://europe.api.riotgames.com/lol/match/v5/matches/{matchId}"
+            statsresponse = requests.get(statsurl, headers=headers)
+            statsdata = statsresponse.json()
+
+            if statsresponse.status_code != 200:
+                return 0
+
+
+            for participant in statsdata["info"]["participants"]:
+                if participant["puuid"] == PUUID:
+                    totalkillsAndAsists += participant["kills"]
+                    totalkillsAndAsists += participant["assists"]
+                    totaldeaths += participant["deaths"]
+
+        if totaldeaths != 0:
+            kda = totalkillsAndAsists / totaldeaths
+            info['kda'] = kda
+        else:
+            kda = totalkillsAndAsists
+
+        url2 = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{PUUID}"
+        response2 = requests.get(url2, headers=headers)
+        data2 = response2.json()
+
+
+        for queue in data2:
+            if queue["queueType"] == "RANKED_SOLO_5x5":
+                info['tier'] = queue["tier"]
+                info["rank"] = queue["rank"]
+                wins = queue["wins"]
+                losses = queue["losses"]
+                info['winRate'] = wins / (wins + losses) * 100
+
+        champurl = f"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{PUUID}"
+        champoresponse = requests.get(champurl, headers=headers)
+        champdata = champoresponse.json()
+
+        topChampId = None
+        topChampLevel = -1
+
+        for champ in champdata:
+            if champ["championLevel"] > topChampLevel:
+                topChampLevel = champ["championLevel"]
+                topChampId = champ["championId"]
+
+        info["topChampId"] = topChampId
+        info["topChampLevel"] = topChampLevel
+
+        dd_version = "13.20.1"
+        champions_url = f"http://ddragon.leagueoflegends.com/cdn/{dd_version}/data/en_US/champion.json"
+        championresponse = requests.get(champions_url)
+        championsData = championresponse.json()
+
+        for champ_name, champ_info in championsData["data"].items():
+            if champ_info["key"] == str(topChampId):
+                 topChampName = champ_info["name"]
+                 info["topChampName"] = topChampName
+                 break
+
+        summonerUrl = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{PUUID}"
+        summonerResponse = requests.get(summonerUrl, headers=headers)
+        summonerData = summonerResponse.json()
+
+        info["summonerLevel"] = summonerData["summonerLevel"]
+        info["profileIconId"] = summonerData["profileIconId"]
+
+        info["iconUrl"] = f"https://ddragon.leagueoflegends.com/cdn/{dd_version}/img/profileicon/{info['profileIconId']}.png"
+
+        return info
+    else:
+        return 0
+
+@bot.command()
+async def lol_userinfo(ctx, *, fullname):
+    if "#" not in fullname:
+        await ctx.send("Please use the format Name#Tag")
+        return
+
+    name = fullname.split("#")[0]
+    tag = fullname.split("#")[1]
+
+    info = league_player_search(name, tag)
+
+    if info == 0:
+        await ctx.send("Player not found")
+        return
+    if info == 1:
+        await ctx.send("Need 20 games")
+
+    embed = discord.Embed(title=f"{name + '#' + tag}", color=discord.Color.blue())
+    embed.set_thumbnail(url=info["iconUrl"])
+    embed.add_field(name="KDA", value=round(info["kda"],2), inline=True)
+    embed.add_field(name="Win Rate", value=f"{round(info['winRate'], 2)}%", inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+    embed.add_field(name="Rank", value=info["tier"] + ' ' + info["rank"], inline=True)
+    embed.add_field(name="Level", value=info["summonerLevel"], inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+    embed.add_field(name="Top Champion", value=info["topChampName"], inline=True)
+    embed.add_field(name="Champion Level", value=info["topChampLevel"], inline=True)
+
+    await ctx.send(embed=embed)
 
 bot.run(TOKEN)
