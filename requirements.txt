@@ -3,4 +3,3 @@ yt-dlp
 requests
 bs4
 Flask
-os
