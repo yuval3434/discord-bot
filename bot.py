@@ -124,6 +124,7 @@ async def show_commands(ctx):
                    "!remind (minutes) (message) - reminder \n"
                    "!poll \"(question)\" (options) - create poll \n"
                    "!mu_userinfo (username) - gives you info about the user in the game mu online \n"
+                   "mu_removable (txt file) - returns a txt file with removable players \n"
                    "!lol_userinfo (username) - gives you info about the user in the game League of legends \n")
 
 @bot.command()
@@ -276,7 +277,7 @@ def mu_cam_remove(players):
     return temp_file
 
 @bot.command()
-async def mu_removeable(ctx):
+async def mu_removable(ctx):
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
         if attachment.filename.endswith(".txt"):
