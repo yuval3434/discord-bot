@@ -9,6 +9,7 @@ import asyncio
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
+import tempfile
 
 
 with open("config.json", "r") as f:
@@ -251,6 +252,45 @@ async def mu_userinfo(ctx,*, player_name):
     embed.add_field(name="level", value=dic["level"][1],inline=False)
 
     await ctx.send(embed=embed)
+
+def mu_cam_remove(players):
+    temp_file = tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt", encoding="utf-8")
+
+    for player_name in players:
+        url = f"https://www.uniquemu.co.il/profile/player/req/{player_name}"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        tbodys = soup.find_all("tbody")
+        tbody = tbodys[2]
+
+        td = tbody.find_all("td")
+        try:
+            answer = td[30].text.split(":")[1].split()[0]
+            if answer != "No":
+                temp_file.write(f"{player_name}\n")
+        except IndexError:
+            temp_file.write(f"{player_name}\n")
+
+    temp_file.close()
+    return temp_file
+
+@bot.command()
+async def mu_removeable(ctx):
+    if ctx.message.attachments:
+        attachment = ctx.message.attachments[0]
+        if attachment.filename.endswith(".txt"):
+            file_bytes = await attachment.read()
+            content = file_bytes.decode("utf-8")
+            lines = [line.strip() for line in content.splitlines() if line.strip()]
+            file = mu_cam_remove(lines)
+            file_path = file.name
+            await ctx.send("📄 here is the file I created for you:", file=discord.File(file_path, "output.txt"))
+        else:
+            await ctx.send("thats not a txt file ❌")
+    else:
+        await ctx.send("You didnt add a file ❌")
+
 
 def league_player_search(name, tag):
     API_KEY = config["API_KEY"]
