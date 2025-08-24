@@ -10,6 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 import tempfile
+from webserver import keep_alive
 
 
 with open("config.json", "r") as f:
@@ -26,6 +27,8 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 @bot.event
 async def on_ready():
     print(f"bot is connected as {bot.user} ✅")
+
+keep_alive()
 
 @bot.command()
 async def ping(ctx):
@@ -124,7 +127,7 @@ async def show_commands(ctx):
                    "!remind (minutes) (message) - reminder \n"
                    "!poll \"(question)\" (options) - create poll \n"
                    "!mu_userinfo (username) - gives you info about the user in the game mu online \n"
-                   "mu_removable (txt file) - returns a txt file with removable players \n"
+                   "!mu_removable (txt file) - returns a txt file with removable players \n"
                    "!lol_userinfo (username) - gives you info about the user in the game League of legends \n")
 
 @bot.command()
