@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote
 import tempfile
 from webserver import keep_alive
+import os
 
 
 with open("config.json", "r") as f:
@@ -39,7 +40,7 @@ async def hello(ctx):
     await ctx.send(f"Hello {ctx.author.name}!")
 
 @bot.command()
-async def say(ctx, message):
+async def say(ctx, *, message):
     await ctx.send(message)
 
 @bot.command()
@@ -96,8 +97,15 @@ async def play(ctx, *, query):
         if ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 
+        def after_playing(error):
+            try:
+                if os.path.exists(filename):
+                    os.remove(filename)
+            except Exception as e:
+                print(f"❌ Error deleting file: {e}")
+
         source = discord.FFmpegPCMAudio(filename)
-        ctx.voice_client.play(source)
+        ctx.voice_client.play(source, after= after_playing)
 
         await ctx.send(f"🎶 Now playing: **{info['title']}**")
 
@@ -127,7 +135,7 @@ async def show_commands(ctx):
                    "!remind (minutes) (message) - reminder \n"
                    "!poll \"(question)\" (options) - create poll \n"
                    "!mu_userinfo (username) - gives you info about the user in the game mu online \n"
-                   "!mu_removable (txt file) - returns a txt file with removable players \n"
+                   "!mu_available (txt file) - returns a txt file with available nicknames \n"
                    "!lol_userinfo (username) - gives you info about the user in the game League of legends \n")
 
 @bot.command()
@@ -191,7 +199,7 @@ async def show_banned(ctx):
 async def timeout(ctx, member: discord.Member, hours: int = 24):
     until = discord.utils.utcnow() + timedelta(hours=hours)
     await member.edit(timed_out_until=until)
-    await ctx.send(f"{member.mention} was been timeout for 24 hours")
+    await ctx.send(f"{member.mention} has been timed out for {hours} hour(s).")
 
 @bot.command()
 @has_permissions(administrator=True)
@@ -216,6 +224,9 @@ async def poll(ctx,question, *options):
     description = ""
     emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
 
+    for i, option in enumerate(options):
+        description += f"{emojis[i]} {option}\n"
+
     embed = discord.Embed(title=question, description=description, color=discord.Color.blue())
     poll_message = await ctx.send(embed=embed)
 
@@ -228,6 +239,8 @@ async def on_command_error(ctx, error):
         await ctx.send("❌ You do not have permission to use this command!")
     elif isinstance(error,commands.MemberNotFound):
         await ctx.send("❌ Member not found")
+    elif isinstance(error, commands.CommandNotFound):
+        await ctx.send("❌ Unknown command. Use !show_commands")
 
 def mu_search_player(player_name):
     url = f"https://www.uniquemu.co.il/profile/player/req/{player_name}"
@@ -257,7 +270,7 @@ async def mu_userinfo(ctx,*, player_name):
 
     await ctx.send(embed=embed)
 
-def mu_cam_remove(players):
+def mu_can_take(players):
     temp_file = tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt", encoding="utf-8")
 
     for player_name in players:
@@ -271,23 +284,23 @@ def mu_cam_remove(players):
         td = tbody.find_all("td")
         try:
             answer = td[30].text.split(":")[1].split()[0]
-            if answer != "No":
+            if answer == "Yes":
                 temp_file.write(f"{player_name}\n")
         except IndexError:
-            temp_file.write(f"{player_name}\n")
+            temp_file.write(f"{player_name} ------- Free \n")
 
     temp_file.close()
     return temp_file
 
 @bot.command()
-async def mu_removable(ctx):
+async def mu_available(ctx):
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
         if attachment.filename.endswith(".txt"):
             file_bytes = await attachment.read()
             content = file_bytes.decode("utf-8")
             lines = [line.strip() for line in content.splitlines() if line.strip()]
-            file = mu_cam_remove(lines)
+            file = mu_can_take(lines)
             file_path = file.name
             await ctx.send("📄 here is the file I created for you:", file=discord.File(file_path, "output.txt"))
         else:
