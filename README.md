@@ -42,27 +42,31 @@ The bot includes fun commands, moderation tools, music playback, reminders, poll
 
   - Keeps the bot alive on Render platform.
 
-## Installation🛠️
-### 1. Clone the repository:
-     ```bash\
-     git clone https://github.com/<your-username>/discord-bot.git
-     cd discord-bot
-   
-### 2. Install dependencies:
-      ```bash\
-      pip install -r requirements.txt
+## 🛠️ Installation
 
-### 3. Setup config.json:
+### 1. Clone the repository
+```bash
+git clone https://github.com/<your-username>/discord-bot.git
+cd discord-bot
+```
 
-Create a file called config.json with:
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-    ```json
-      ```חד
-      {
-      "TOKEN": "Enter your Discord bot token here",
-    "PREFIX": "!",
-    "API_KEY": "Enter your Riot API key here"
-     }
+### 3. Setup config.json
+
+Create a file called `config.json` with:
+
+```json
+{
+  "TOKEN": "Enter your Discord bot token here",
+  "PREFIX": "!",
+  "API_KEY": "Enter your Riot API key here"
+}
+```
+
 
 ## Notes📌
 - Make sure you have FFmpeg installed for music playback.
