@@ -56,10 +56,10 @@ The bot includes fun commands, moderation tools, music playback, reminders, poll
       ```bash\
    Create a file called config.json with:
    {
-  "TOKEN": "Enter your Discord bot token here",
-  "PREFIX": "!",
-  "API_KEY": "Enter your Riot API key here"
-}
+    "TOKEN": "Enter your Discord bot token here",
+    "PREFIX": "!",
+    "API_KEY": "Enter your Riot API key here"
+   }
 
 ## Notes📌
 - Make sure you have FFmpeg installed for music playback.
