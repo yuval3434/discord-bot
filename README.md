@@ -53,8 +53,8 @@ The bot includes fun commands, moderation tools, music playback, reminders, poll
    pip install -r requirements.txt
 
 3. Setup config.json:
+      Create a file called config.json with:
       ```bash\
-   Create a file called config.json with:
    {
     "TOKEN": "Enter your Discord bot token here",
     "PREFIX": "!",
